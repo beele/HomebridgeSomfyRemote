@@ -40,11 +40,17 @@ HomebridgeSomfy.prototype = {
             rpio.write(me.PIN_UP, rpio.HIGH);
             rpio.msleep(100);
             rpio.write(me.PIN_UP, rpio.LOW);
+
+            me.isOn = true;
         } else {
             rpio.write(me.PIN_DOWN, rpio.HIGH);
             rpio.msleep(100);
             rpio.write(me.PIN_DOWN, rpio.LOW);
+
+            me.isOn = false;
         }
+
+        next();
     },
 
     getServices: function () {
