@@ -1,0 +1,26 @@
+{
+  "name": "homewizard-somfy",
+  "version": "0.0.1",
+  "description": "Homewizard plugin to control somfy shutters",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/beele/HomebridgeSomfyRemote.git"
+  },
+  "keywords": [
+    "homebridge-plugin"
+  ],
+  "author": "Kevin Van den Abeele",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/beele/HomebridgeSomfyRemote/issues"
+  },
+  "engines": {
+    "node": ">=9.8.0",
+    "homebridge": ">=0.4.45"
+  },
+  "homepage": "https://github.com/beele/HomebridgeSomfyRemote#readme"
+}
