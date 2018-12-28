@@ -19,7 +19,7 @@ module.exports = function (homebridge) {
 
 function HomebridgeSomfy(log, config) {
     this.log = log;
-    this.isOn = true;
+    this.isOn = false;
 
     this.PIN_UP = config['pinup'];
     this.PIN_DOWN = config['pindown'];
@@ -36,7 +36,7 @@ HomebridgeSomfy.prototype = {
     setPowerState: function (powerOn, next) {
         const me = this;
 
-        if (powerOn) {
+        if (!powerOn) {
             rpio.write(me.PIN_UP, rpio.LOW);
             rpio.msleep(100);
             rpio.write(me.PIN_UP, rpio.HIGH);
