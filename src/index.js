@@ -6,8 +6,8 @@ let Service, Characteristic;
 //   {
 //     "accessory": "HomebridgeSomfy",
 //     "name": "display-name",
-//     "pinup": "1",
-//     "pindown": "2"
+//     "pinup": "3",
+//     "pindown": "5"
 //   }
 // ]
 
@@ -24,8 +24,8 @@ function HomebridgeSomfy(log, config) {
     this.PIN_UP = config['pinup'];
     this.PIN_DOWN = config['pindown'];
 
-    rpio.open(this.PIN_UP, rpio.OUTPUT, rpio.LOW);
-    rpio.open(this.PIN_DOWN, rpio.OUTPUT, rpio.LOW);
+    rpio.open(this.PIN_UP, rpio.OUTPUT, rpio.HIGH);
+    rpio.open(this.PIN_DOWN, rpio.OUTPUT, rpio.HIGH);
 }
 
 HomebridgeSomfy.prototype = {
@@ -37,15 +37,15 @@ HomebridgeSomfy.prototype = {
         const me = this;
 
         if (powerOn) {
-            rpio.write(me.PIN_UP, rpio.HIGH);
-            rpio.msleep(100);
             rpio.write(me.PIN_UP, rpio.LOW);
+            rpio.msleep(100);
+            rpio.write(me.PIN_UP, rpio.HIGH);
 
             me.isOn = true;
         } else {
-            rpio.write(me.PIN_DOWN, rpio.HIGH);
-            rpio.msleep(100);
             rpio.write(me.PIN_DOWN, rpio.LOW);
+            rpio.msleep(100);
+            rpio.write(me.PIN_DOWN, rpio.HIGH);
 
             me.isOn = false;
         }
