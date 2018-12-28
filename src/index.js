@@ -41,13 +41,13 @@ HomebridgeSomfy.prototype = {
             rpio.msleep(100);
             rpio.write(me.PIN_UP, rpio.HIGH);
 
-            me.isOn = true;
+            me.isOn = false;
         } else {
             rpio.write(me.PIN_DOWN, rpio.LOW);
             rpio.msleep(100);
             rpio.write(me.PIN_DOWN, rpio.HIGH);
 
-            me.isOn = false;
+            me.isOn = true;
         }
 
         next();
