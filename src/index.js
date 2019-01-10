@@ -7,7 +7,8 @@ let Service, Characteristic;
 //     "accessory": "HomebridgeSomfy",
 //     "name": "display-name",
 //     "pinup": "3",
-//     "pindown": "5"
+//     "pindown": "5",
+//     "duration: 10"
 //   }
 // ]
 
@@ -18,39 +19,75 @@ module.exports = function (homebridge) {
 };
 
 function HomebridgeSomfy(log, config) {
+    this.service = new Service.WindowCovering(this.name);
     this.log = log;
-    this.isOn = false;
+
+    this.currentPosition = 100;
+    this.targetPosition = 100;
+    this.positionState = Characteristic.PositionState.STOPPED;
 
     this.PIN_UP = config['pinup'];
     this.PIN_DOWN = config['pindown'];
+    this.movementDuration = config['duration'];
 
     rpio.open(this.PIN_UP, rpio.OUTPUT, rpio.HIGH);
     rpio.open(this.PIN_DOWN, rpio.OUTPUT, rpio.HIGH);
 }
 
 HomebridgeSomfy.prototype = {
-    getPowerState: function (next) {
-        return next(null, this.isOn);
+    getCurrentPosition: function (callback) {
+        const me = this;
+        callback(null, me.currentPosition);
     },
-
-    setPowerState: function (powerOn, next) {
+    getTargetPosition: function (callback) {
+        const me = this;
+        callback(null, me.targetPosition);
+    },
+    setTargetPosition: function (position, callback) {
         const me = this;
 
-        if (!powerOn) {
+        clearInterval(me.interval);
+        me.targetPosition = position !== 0 && position !== 100 ? 0 : position;
+
+        if (me.targetPosition === 100) {
+            me.log('Opening shutters');
+
             rpio.write(me.PIN_UP, rpio.LOW);
             rpio.msleep(100);
             rpio.write(me.PIN_UP, rpio.HIGH);
 
-            me.isOn = false;
+            me.positionState = Characteristic.PositionState.DECREASING;
         } else {
+            me.log('Closing shutters');
+
             rpio.write(me.PIN_DOWN, rpio.LOW);
             rpio.msleep(100);
             rpio.write(me.PIN_DOWN, rpio.HIGH);
 
-            me.isOn = true;
+            me.positionState = Characteristic.PositionState.INCREASING;
         }
 
-        next();
+        me.interval = setInterval(() => {
+            if (me.currentPosition !== me.targetPosition) {
+                if (me.targetPosition === 100) {
+                    me.currentPosition += 10;
+                } else if (me.targetPosition === 0){
+                    me.currentPosition -= 10;
+                }
+                me.service.setCharacteristic(Characteristic.CurrentPosition, me.currentPosition);
+            } else {
+                me.positionState = Characteristic.PositionState.STOPPED;
+                me.service.setCharacteristic(Characteristic.PositionState, me.positionState);
+                clearInterval(me.interval);
+            }
+
+        }, me.movementDuration * 100);
+
+        callback(null);
+    },
+    getPositionState: function (callback) {
+        const me = this;
+        callback(null, me.positionState);
     },
 
     getServices: function () {
@@ -61,13 +98,24 @@ HomebridgeSomfy.prototype = {
             .setCharacteristic(Characteristic.Model, "Telis 1 RTS")
             .setCharacteristic(Characteristic.SerialNumber, "1234-5678");
 
-        const switchService = new Service.Switch(me.name);
-        switchService.getCharacteristic(Characteristic.On)
-            .on('get', this.getPowerState.bind(this))
-            .on('set', this.setPowerState.bind(this));
+        const currentPositionChar = this.service.getCharacteristic(Characteristic.CurrentPosition);
+        currentPositionChar.on('get', this.getCurrentPosition.bind(this));
 
-        this.informationService = informationService;
-        this.switchService = switchService;
-        return [informationService, switchService];
+        const targetPositionChar = this.service.getCharacteristic(Characteristic.TargetPosition);
+        targetPositionChar.setProps({
+            format: Characteristic.Formats.UINT8,
+            unit: Characteristic.Units.PERCENTAGE,
+            maxValue: 100,
+            minValue: 0,
+            minStep: 100,
+            perms: [Characteristic.Perms.READ, Characteristic.Perms.WRITE, Characteristic.Perms.NOTIFY]
+        });
+        targetPositionChar.on('get', this.getTargetPosition.bind(this));
+        targetPositionChar.on('set', this.setTargetPosition.bind(this));
+
+        this.service.getCharacteristic(Characteristic.PositionState)
+            .on('get', this.getPositionState.bind(this));
+
+        return [informationService, me.service];
     }
 };
