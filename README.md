@@ -10,7 +10,8 @@ Next open the config.json that contains your Homebridge configuration and add a 
     "accessory": "HomebridgeSomfy",
     "name": "display-name",
     "pinup": "hardware pin number",
-    "pindown": "hardware pin number"
+    "pindown": "hardware pin number",
+    "duration": "average full up/down motion in seconds"
 }
 ```
 
