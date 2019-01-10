@@ -76,12 +76,12 @@ HomebridgeSomfy.prototype = {
                 } else if (me.targetPosition === 0){
                     me.currentPosition -= 10;
                 }
-                me.service.setCharacteristic(Characteristic.CurrentPosition, me.currentPosition);
+                me.service.getCharacteristic(Characteristic.CurrentPosition).updateValue(me.currentPosition);
             } else {
                 me.log('Operation completed!');
 
                 me.positionState = Characteristic.PositionState.STOPPED;
-                me.service.setCharacteristic(Characteristic.PositionState, me.positionState);
+                me.service.getCharacteristic(Characteristic.PositionState).updateValue(me.positionState);
                 clearInterval(me.interval);
             }
 
