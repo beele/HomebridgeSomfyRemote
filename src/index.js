@@ -30,6 +30,8 @@ function HomebridgeSomfy(log, config) {
     this.PIN_DOWN = config['pindown'];
     this.movementDuration = config['duration'];
 
+    this.log('Average movement duration is ' + this.movementDuration + ' seconds');
+
     rpio.open(this.PIN_UP, rpio.OUTPUT, rpio.HIGH);
     rpio.open(this.PIN_DOWN, rpio.OUTPUT, rpio.HIGH);
 }
@@ -76,6 +78,8 @@ HomebridgeSomfy.prototype = {
                 }
                 me.service.setCharacteristic(Characteristic.CurrentPosition, me.currentPosition);
             } else {
+                me.log('Operation completed!');
+
                 me.positionState = Characteristic.PositionState.STOPPED;
                 me.service.setCharacteristic(Characteristic.PositionState, me.positionState);
                 clearInterval(me.interval);
