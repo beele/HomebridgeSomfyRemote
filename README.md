@@ -11,13 +11,18 @@ Next open the config.json that contains your Homebridge configuration and add a 
     "name": "display-name",
     "pinup": "hardware pin number",
     "pindown": "hardware pin number",
-    "duration": "average full up/down motion in seconds"
+    "duration": "average full up/down motion in seconds",
+    "delay": "the delay in seconds (can be 0 for the first plugin instance)"
 }
 ```
 
 The accessory name has to be `HomebridgeSomfy` to link to the plugin.
 The `name` field is for the display name in the HomeKit app.
 The `pinup` and `pindown` fields are your hardware pin numbers for shutters up/down.
+The `duration` field set the duration it takes for the shutters to fully open or close.
+The `delay` field is optional when only one instance of this plugin is used.
+When using multiple instances of this plugin it is required to specify this field. 
+It contains the number of seconds that the plugin should wait before sending a signal to the remote. 
 
 The default state for the shutters in the HomeKit app is disabled, which means the shutters are raised.
 If the switch is active it means the shutters are lowered.

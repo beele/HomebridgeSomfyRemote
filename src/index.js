@@ -8,7 +8,8 @@ let Service, Characteristic;
 //     "name": "display-name",
 //     "pinup": "3",
 //     "pindown": "5",
-//     "duration: 10"
+//     "duration: "10",
+//     "delay": "1"
 //   }
 // ]
 
@@ -29,6 +30,7 @@ function HomebridgeSomfy(log, config) {
     this.PIN_UP = config['pinup'];
     this.PIN_DOWN = config['pindown'];
     this.movementDuration = config['duration'];
+    this.delay = config['delay'] ? ((config['delay'] * 1000) + 1) : 1;
 
     this.log('Average movement duration is ' + this.movementDuration + ' seconds');
 
@@ -48,44 +50,46 @@ HomebridgeSomfy.prototype = {
     setTargetPosition: function (position, callback) {
         const me = this;
 
-        clearInterval(me.interval);
-        me.targetPosition = position !== 0 && position !== 100 ? 0 : position;
+        setTimeout(() => {
+            clearInterval(me.interval);
+            me.targetPosition = position !== 0 && position !== 100 ? 0 : position;
 
-        if (me.targetPosition === 100) {
-            me.log('Opening shutters');
+            if (me.targetPosition === 100) {
+                me.log('Opening shutters');
 
-            rpio.write(me.PIN_UP, rpio.LOW);
-            rpio.msleep(100);
-            rpio.write(me.PIN_UP, rpio.HIGH);
+                rpio.write(me.PIN_UP, rpio.LOW);
+                rpio.msleep(100);
+                rpio.write(me.PIN_UP, rpio.HIGH);
 
-            me.positionState = Characteristic.PositionState.DECREASING;
-        } else {
-            me.log('Closing shutters');
-
-            rpio.write(me.PIN_DOWN, rpio.LOW);
-            rpio.msleep(100);
-            rpio.write(me.PIN_DOWN, rpio.HIGH);
-
-            me.positionState = Characteristic.PositionState.INCREASING;
-        }
-
-        me.interval = setInterval(() => {
-            if (me.currentPosition !== me.targetPosition) {
-                if (me.targetPosition === 100) {
-                    me.currentPosition += 10;
-                } else if (me.targetPosition === 0){
-                    me.currentPosition -= 10;
-                }
-                me.service.getCharacteristic(Characteristic.CurrentPosition).updateValue(me.currentPosition);
+                me.positionState = Characteristic.PositionState.DECREASING;
             } else {
-                me.log('Operation completed!');
+                me.log('Closing shutters');
 
-                me.positionState = Characteristic.PositionState.STOPPED;
-                me.service.getCharacteristic(Characteristic.PositionState).updateValue(me.positionState);
-                clearInterval(me.interval);
+                rpio.write(me.PIN_DOWN, rpio.LOW);
+                rpio.msleep(100);
+                rpio.write(me.PIN_DOWN, rpio.HIGH);
+
+                me.positionState = Characteristic.PositionState.INCREASING;
             }
 
-        }, me.movementDuration * 100);
+            me.interval = setInterval(() => {
+                if (me.currentPosition !== me.targetPosition) {
+                    if (me.targetPosition === 100) {
+                        me.currentPosition += 10;
+                    } else if (me.targetPosition === 0){
+                        me.currentPosition -= 10;
+                    }
+                    me.service.getCharacteristic(Characteristic.CurrentPosition).updateValue(me.currentPosition);
+                } else {
+                    me.log('Operation completed!');
+
+                    me.positionState = Characteristic.PositionState.STOPPED;
+                    me.service.getCharacteristic(Characteristic.PositionState).updateValue(me.positionState);
+                    clearInterval(me.interval);
+                }
+
+            }, me.movementDuration * 100);
+        }, me.delay);
 
         callback(null);
     },
