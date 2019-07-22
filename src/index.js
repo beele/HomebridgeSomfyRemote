@@ -8,7 +8,8 @@ let Service, Characteristic;
 //     "name": "display-name",
 //     "pinup": "3",
 //     "pindown": "5",
-//     "duration: "10",
+//     "movementduration: "10",
+//     "pressduration": "500",
 //     "delay": "1"
 //   }
 // ]
@@ -29,7 +30,8 @@ function HomebridgeSomfy(log, config) {
 
     this.PIN_UP = config['pinup'];
     this.PIN_DOWN = config['pindown'];
-    this.movementDuration = config['duration'];
+    this.movementDuration = config['movementduration'] ? config['movementduration'] : 10;
+    this.buttonPressDuration = config['pressduration'] ? config['pressduration'] : 500;
     this.delay = config['delay'] ? ((config['delay'] * 1000) + 1) : 1;
 
     this.log('Average movement duration is ' + this.movementDuration + ' seconds');
@@ -58,7 +60,7 @@ HomebridgeSomfy.prototype = {
                 me.log('Opening shutters');
 
                 rpio.write(me.PIN_UP, rpio.LOW);
-                rpio.msleep(100);
+                rpio.msleep(me.buttonPressDuration);
                 rpio.write(me.PIN_UP, rpio.HIGH);
 
                 me.positionState = Characteristic.PositionState.DECREASING;
@@ -66,7 +68,7 @@ HomebridgeSomfy.prototype = {
                 me.log('Closing shutters');
 
                 rpio.write(me.PIN_DOWN, rpio.LOW);
-                rpio.msleep(100);
+                rpio.msleep(me.buttonPressDuration);
                 rpio.write(me.PIN_DOWN, rpio.HIGH);
 
                 me.positionState = Characteristic.PositionState.INCREASING;
