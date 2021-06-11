@@ -1,4 +1,5 @@
 const rpio = require('rpio');
+const mqtt = require('mqtt');
 
 let Service, Characteristic;
 
@@ -9,8 +10,13 @@ let Service, Characteristic;
 //     "pinup": "3",
 //     "pindown": "5",
 //     "movementduration: "10",
-//     "pressduration": "500",
+//     "pressduration": "250",
 //     "delay": "1"
+//     "mqttbroker": "mqtt://broker-url:1883",
+//     "mqttuser": "username",
+//     "mqttpassword": "password",
+//     "mqtttopicin": "/path/and/topic/in",
+//     "mqtttopicout": "/path/and/topic/out",
 //   }
 // ]
 
@@ -31,10 +37,67 @@ function HomebridgeSomfy(log, config) {
     this.PIN_UP = config['pinup'];
     this.PIN_DOWN = config['pindown'];
     this.movementDuration = config['movementduration'] ? config['movementduration'] : 10;
-    this.buttonPressDuration = config['pressduration'] ? config['pressduration'] : 500;
-    this.delay = config['delay'] ? ((config['delay'] * 1000) + 1) : 1;
+    this.buttonPressDuration = config['pressduration'] ? config['pressduration'] : 250;
+    this.delay = config['delay'] ? ((config['delay'] * 1000) + 1) : 0;
+    this.mqttBroker = config['mqttbroker'] ? config['mqttbroker'] : null;
+    this.mqttUser = config['mqttuser'] ? config['mqttuser'] : null;
+    this.mqttPassword = config['mqttpassword'] ? config['mqttpassword'] : null;
+    this.mqttTopicIn = config['mqtttopicin'] ? config['mqtttopicin'] : null;
+    this.mqttTopicOut = config['mqtttopicout'] ? config['mqtttopicout'] : null;
 
     this.log('Average movement duration is ' + this.movementDuration + ' seconds');
+
+    this.up = () => {
+        this.positionState = Characteristic.PositionState.DECREASING;
+        rpio.write(this.PIN_UP, rpio.LOW);
+        rpio.msleep(this.buttonPressDuration);
+        rpio.write(this.PIN_UP, rpio.HIGH);
+    };
+    this.down = () => {
+        this.positionState = Characteristic.PositionState.INCREASING;
+        rpio.write(this.PIN_DOWN, rpio.LOW);
+        rpio.msleep(this.buttonPressDuration);
+        rpio.write(this.PIN_DOWN, rpio.HIGH);
+    };
+    this.sendMqtt = (topic, message) => {
+        if (this.client && this.client.connected) {
+            this.client.publish(topic, message, {retain: true, qos: 1});
+        }
+    };
+
+    if (this.mqttBroker) {
+        this.client = mqtt.connect(this.mqttBroker, {username: this.mqttUser, password: this.mqttPassword});
+        this.client.on('connect', () => {
+            this.log('Connected to MQTT broker!');
+
+            this.client.subscribe(this.mqttTopicIn, (err, granted) => {
+                if (!err) {
+                    if (granted && granted.length === 1) {
+                        this.client.on('message', (topic, payload, packet) => {
+                            const input = JSON.parse(payload.toString());
+                            if (input.target === 'up') {
+                                this.log('Opening shutters via mqtt');
+                                setTimeout(() => {
+                                    this.up();
+                                    this.up();
+                                });
+                                this.sendMqtt(this.mqttTopicOut, JSON.stringify({state: 'up'}));
+                            } else if(input.target === 'down') {
+                                this.log('Closing shutters via mqtt');
+                                setTimeout(() => {
+                                    this.down();
+                                    this.down();
+                                });
+                                this.sendMqtt(this.mqttTopicOut, JSON.stringify({state: 'down'}));
+                            }
+                        });
+                    }
+                }
+            })
+        });
+    } else {
+        this.client = null;
+    }
 
     rpio.open(this.PIN_UP, rpio.OUTPUT, rpio.HIGH);
     rpio.open(this.PIN_DOWN, rpio.OUTPUT, rpio.HIGH);
@@ -52,45 +115,36 @@ HomebridgeSomfy.prototype = {
     setTargetPosition: function (position, callback) {
         const me = this;
 
-        setTimeout(() => {
-            clearInterval(me.interval);
+        clearInterval(me.delayInterval);
+        me.delayInterval = setTimeout(() => {
+            clearInterval(me.durationInterval);
             me.targetPosition = position !== 0 && position !== 100 ? 0 : position;
 
             if (me.targetPosition === 100) {
-                me.log('Opening shutters');
-
-                rpio.write(me.PIN_UP, rpio.LOW);
-                rpio.msleep(me.buttonPressDuration);
-                rpio.write(me.PIN_UP, rpio.HIGH);
-
-                me.positionState = Characteristic.PositionState.DECREASING;
+                me.log('Opening shutters via homekit');
+                setTimeout(() => {
+                    me.up();
+                    me.up();
+                });
+                me.sendMqtt(me.mqttTopicOut, JSON.stringify({state: 'up'}));
             } else {
-                me.log('Closing shutters');
-
-                rpio.write(me.PIN_DOWN, rpio.LOW);
-                rpio.msleep(me.buttonPressDuration);
-                rpio.write(me.PIN_DOWN, rpio.HIGH);
-
-                me.positionState = Characteristic.PositionState.INCREASING;
+                me.log('Closing shutters via homekit');
+                setTimeout(() => {
+                    me.down();
+                    me.down();
+                });
+                me.sendMqtt(me.mqttTopicOut, JSON.stringify({state: 'down'}));
             }
 
-            me.interval = setInterval(() => {
-                if (me.currentPosition !== me.targetPosition) {
-                    if (me.targetPosition === 100) {
-                        me.currentPosition += 10;
-                    } else if (me.targetPosition === 0){
-                        me.currentPosition -= 10;
-                    }
-                    me.service.getCharacteristic(Characteristic.CurrentPosition).updateValue(me.currentPosition);
-                } else {
-                    me.log('Operation completed!');
+            me.durationInterval = setTimeout(() => {
+                me.currentPosition = me.targetPosition === 100 ? 100 : 0;
 
-                    me.positionState = Characteristic.PositionState.STOPPED;
-                    me.service.getCharacteristic(Characteristic.PositionState).updateValue(me.positionState);
-                    clearInterval(me.interval);
-                }
+                me.service.getCharacteristic(Characteristic.CurrentPosition).updateValue(me.currentPosition);
+                me.positionState = Characteristic.PositionState.STOPPED;
+                me.service.getCharacteristic(Characteristic.PositionState).updateValue(me.positionState);
 
-            }, me.movementDuration * 100);
+                me.log('Operation completed!');
+            }, me.movementDuration * 1000);
         }, me.delay);
 
         callback(null);

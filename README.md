@@ -5,7 +5,7 @@ This Homebridge plugin allows control of Raspberry Pi GPIO pins, more specifical
 To install this plugin simple type `sudo npm install homebridge-somfy -g --unsafe-perm=true`.
 Next open the config.json that contains your Homebridge configuration and add a block like the following one to the accessories array:
 
-```javascript
+```json
 {
     "accessory": "HomebridgeSomfy",
     "name": "display-name",
@@ -13,7 +13,12 @@ Next open the config.json that contains your Homebridge configuration and add a 
     "pindown": "hardware pin number",
     "movementduration": "average full up/down motion in seconds",
     "pressduration": "duration of button press in milliseconds",
-    "delay": "the delay in seconds (can be 0 for the first plugin instance)"
+    "delay": "the delay in seconds (can be 0 for the first plugin instance)", 
+    "mqttbroker": "mqtt://broker-url:1883",
+    "mqttuser": "username",
+    "mqttpassword": "password",
+    "mqtttopicin": "/path/and/topic/in",
+    "mqtttopicout": "/path/and/topic/out"
 }
 ```
 
@@ -23,6 +28,11 @@ The `pinup` and `pindown` fields are your hardware pin numbers for shutters up/d
 The `movementduration` field sets the duration (in seconds as a string) it takes for the shutters to fully open or close.
 The `pressduration` field sets the duration (in milliseconds as a string) the button on the remote is activated/pressed.
 The `delay` field is optional when only one instance of this plugin is used.
+The `mqttbroker` field is the broker url (including mqtt:// and port, default 1883) to connect to.
+The `mqttuser` field is the username used for the mqtt connection.
+The `mqttpassword` field is the password used for the mqtt connection.
+The `mqtttopicin` field contains the topic for controlling the shutters via mqtt, payload must be JSON with a field name `target` being either `up` or `down`.
+The `mqtttopicout` field contains the topic for sending updates when the shutters are controlled, the messages have the retained flag set.
 When using multiple instances of this plugin it is required to specify this field. 
 It contains the number of seconds that the plugin should wait before sending a signal to the remote. 
 
