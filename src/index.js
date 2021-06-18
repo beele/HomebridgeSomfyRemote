@@ -48,13 +48,11 @@ function HomebridgeSomfy(log, config) {
     this.log('Average movement duration is ' + this.movementDuration + ' seconds');
 
     this.up = () => {
-        this.positionState = Characteristic.PositionState.DECREASING;
         rpio.write(this.PIN_UP, rpio.LOW);
         rpio.msleep(this.buttonPressDuration);
         rpio.write(this.PIN_UP, rpio.HIGH);
     };
     this.down = () => {
-        this.positionState = Characteristic.PositionState.INCREASING;
         rpio.write(this.PIN_DOWN, rpio.LOW);
         rpio.msleep(this.buttonPressDuration);
         rpio.write(this.PIN_DOWN, rpio.HIGH);
@@ -70,24 +68,41 @@ function HomebridgeSomfy(log, config) {
         this.client.on('connect', () => {
             this.log('Connected to MQTT broker!');
 
+
+            let mqqtInterval = null;
             this.client.subscribe(this.mqttTopicIn, (err, granted) => {
                 if (!err) {
                     if (granted && granted.length === 1) {
                         this.client.on('message', (topic, payload, packet) => {
                             const input = JSON.parse(payload.toString());
+                            clearTimeout(mqqtInterval);
+
                             if (input.target === 'up') {
                                 this.log('Opening shutters via mqtt');
+                                this.positionState = Characteristic.PositionState.DECREASING;
                                 setTimeout(() => {
                                     this.up();
                                     this.up();
                                 });
+                                mqqtInterval = setTimeout(() => {
+                                    this.currentPosition = 100;
+                                    this.positionState = Characteristic.PositionState.STOPPED;
+                                    this.log('Operation completed via mqtt!');
+                                }, this.movementDuration * 1000);
                                 this.sendMqtt(this.mqttTopicOut, JSON.stringify({state: 'up'}));
+                                
                             } else if(input.target === 'down') {
                                 this.log('Closing shutters via mqtt');
+                                this.positionState = Characteristic.PositionState.INCREASING;
                                 setTimeout(() => {
                                     this.down();
                                     this.down();
                                 });
+                                mqqtInterval = setTimeout(() => {
+                                    this.currentPosition = 0;
+                                    this.positionState = Characteristic.PositionState.STOPPED;
+                                    this.log('Operation completed via mqtt!');
+                                }, this.movementDuration * 1000);
                                 this.sendMqtt(this.mqttTopicOut, JSON.stringify({state: 'down'}));
                             }
                         });
@@ -122,6 +137,7 @@ HomebridgeSomfy.prototype = {
 
             if (me.targetPosition === 100) {
                 me.log('Opening shutters via homekit');
+                this.positionState = Characteristic.PositionState.DECREASING;
                 setTimeout(() => {
                     me.up();
                     me.up();
@@ -129,6 +145,7 @@ HomebridgeSomfy.prototype = {
                 me.sendMqtt(me.mqttTopicOut, JSON.stringify({state: 'up'}));
             } else {
                 me.log('Closing shutters via homekit');
+                this.positionState = Characteristic.PositionState.INCREASING;
                 setTimeout(() => {
                     me.down();
                     me.down();
@@ -143,7 +160,7 @@ HomebridgeSomfy.prototype = {
                 me.positionState = Characteristic.PositionState.STOPPED;
                 me.service.getCharacteristic(Characteristic.PositionState).updateValue(me.positionState);
 
-                me.log('Operation completed!');
+                me.log('Operation completed via homekit!');
             }, me.movementDuration * 1000);
         }, me.delay);
 
