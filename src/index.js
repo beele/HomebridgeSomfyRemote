@@ -68,7 +68,6 @@ function HomebridgeSomfy(log, config) {
         this.client.on('connect', () => {
             this.log('Connected to MQTT broker!');
 
-
             let mqqtInterval = null;
             this.client.subscribe(this.mqttTopicIn, (err, granted) => {
                 if (!err) {
@@ -79,6 +78,7 @@ function HomebridgeSomfy(log, config) {
 
                             if (input.target === 'up') {
                                 this.log('Opening shutters via mqtt');
+                                this.targetPosition = 100;
                                 this.positionState = Characteristic.PositionState.DECREASING;
                                 setTimeout(() => {
                                     this.up();
@@ -90,9 +90,10 @@ function HomebridgeSomfy(log, config) {
                                     this.log('Operation completed via mqtt!');
                                 }, this.movementDuration * 1000);
                                 this.sendMqtt(this.mqttTopicOut, JSON.stringify({state: 'up'}));
-                                
+
                             } else if(input.target === 'down') {
                                 this.log('Closing shutters via mqtt');
+                                this.targetPosition = 0;
                                 this.positionState = Characteristic.PositionState.INCREASING;
                                 setTimeout(() => {
                                     this.down();
